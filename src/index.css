@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
+  }
+  
+  .btn-success {
+    @apply bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 transform hover:scale-105 hover:shadow-lg;
+  }
+  
+  .btn-danger {
+    @apply bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-full transition-all duration-300 transform hover:scale-105;
+  }
+  
+  .card {
+    @apply bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:outline-none transition-colors duration-300;
+  }
+  
+  .quantity-btn {
+    @apply w-10 h-10 rounded-full bg-primary-500 hover:bg-primary-600 text-white font-bold transition-all duration-300 transform hover:scale-110 flex items-center justify-center;
+  }
+  
+  .quantity-btn:disabled {
+    @apply bg-gray-300 hover:bg-gray-300 transform-none cursor-not-allowed;
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .gradient-bg {
+    background: linear-gradient(135deg, #f0f9f0 0%, #dcf2dc 100%);
+  }
+  
+  .hero-gradient {
+    background: linear-gradient(135deg, #2c5530 0%, #4a7c59 100%);
+  }
+}
+
+/* Swiper custom styles */
+.swiper-pagination-bullet {
+  @apply bg-primary-500;
+}
+
+.swiper-pagination-bullet-active {
+  @apply bg-primary-600;
+}
+
+.swiper-button-next,
+.swiper-button-prev {
+  @apply text-primary-500;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary-500 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary-600;
+}
