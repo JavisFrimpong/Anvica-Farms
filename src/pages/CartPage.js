@@ -4,12 +4,26 @@ import { useCart } from '../context/CartContext';
 import { products } from '../data/products';
 
 const CartPage = () => {
-  const { items, removeFromCart, removeItemCompletely, getTotalPrice } = useCart();
+  const { items, addToCart, removeFromCart, removeItemCompletely, getTotalPrice } = useCart();
 
-  const cartItems = Object.entries(items).map(([productId, quantity]) => ({
-    ...products[productId],
-    quantity
-  }));
+  // Build cart items defensively: items' keys might be either the product object key
+  // (e.g. 'live-chicken') or the product's internal `id` (e.g. 'live-poultry').
+  // Try direct lookup first, then fall back to matching by product.id.
+  const cartItems = Object.entries(items).map(([productKey, quantity]) => {
+    const productFromKey = products[productKey];
+    const productById = Object.values(products).find((p) => p.id === productKey);
+    const product = productFromKey || productById || null;
+
+    return {
+      productKey,
+      id: product ? (product.id ?? productKey) : productKey,
+      name: product ? product.name : 'Unknown product',
+      price: product ? product.price : 0,
+      category: product ? product.category : '',
+      images: product ? product.images ?? [] : [],
+      quantity
+    };
+  });
 
   if (cartItems.length === 0) {
     return (
@@ -32,7 +46,7 @@ const CartPage = () => {
   }
 
   return (
-    <div className="min-h-screen py-16 px-4">
+    <div className="min-h-screen pt-28 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -46,12 +60,15 @@ const CartPage = () => {
         {/* Cart Items */}
         <div className="space-y-4 mb-8">
           {cartItems.map((item) => (
-            <div key={item.id} className="card p-6">
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
-                {/* Product Image */}
-                <div className="w-full md:w-32 h-32 bg-gray-200 rounded-xl overflow-hidden">
+            <div key={item.productKey} className="card p-6">
+              <div className="flex items-center gap-4">
+                {/* Product Image (smaller) */}
+                <div className="w-20 h-20 md:w-24 md:h-24 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
                   <img
-                    src={item.images[0]}
+                    src={
+                      (item.images && item.images.length > 0 && item.images[0]) ||
+                      `https://via.placeholder.com/200x200/2c5530/ffffff?text=${encodeURIComponent(item.name)}`
+                    }
                     alt={item.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -60,13 +77,13 @@ const CartPage = () => {
                   />
                 </div>
 
-                {/* Product Info */}
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-primary-600 mb-2">
+                {/* Product Info: name, id and price beside image */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-primary-600 truncate">
                     {item.name}
                   </h3>
-                  <p className="text-gray-600 mb-2">{item.category}</p>
-                  <p className="text-lg font-bold text-primary-600">
+                  <p className="text-sm text-gray-500 truncate">ID: {item.id}</p>
+                  <p className="text-md font-bold text-primary-600 mt-1">
                     ₵{item.price.toLocaleString()} each
                   </p>
                 </div>
@@ -75,7 +92,7 @@ const CartPage = () => {
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item.productKey)}
                       className="quantity-btn"
                     >
                       <i className="fas fa-minus"></i>
@@ -84,7 +101,7 @@ const CartPage = () => {
                       {item.quantity}
                     </span>
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => addToCart(item.productKey)}
                       className="quantity-btn"
                     >
                       <i className="fas fa-plus"></i>
@@ -92,7 +109,7 @@ const CartPage = () => {
                   </div>
                   
                   <button
-                    onClick={() => removeItemCompletely(item.id)}
+                    onClick={() => removeItemCompletely(item.productKey)}
                     className="btn-danger"
                   >
                     <i className="fas fa-trash mr-2"></i>

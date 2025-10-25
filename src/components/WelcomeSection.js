@@ -18,7 +18,7 @@ const WelcomeSection = () => {
         {/* Contact Information */}
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl mx-auto">
           <h2 className="text-2xl font-bold text-primary-600 mb-6">
-            Get in Touch
+            Get in Touch with Anvica Farms
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="flex items-center justify-center space-x-3 p-4 bg-primary-50 rounded-xl">

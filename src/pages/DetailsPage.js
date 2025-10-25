@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 
 const DetailsPage = () => {
-  const { setCustomerDetails } = useCart();
+  const { setCustomerDetails, customerDetails } = useCart();
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(customerDetails || {
     name: '',
     phone: '',
     location: ''

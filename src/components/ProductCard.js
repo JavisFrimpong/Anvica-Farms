@@ -25,7 +25,7 @@ const ProductCard = ({ product }) => {
           navigation={true}
           pagination={{ clickable: true }}
           autoplay={{
-            delay: 3000,
+            delay: 3500,
             disableOnInteraction: false,
           }}
           className="rounded-xl overflow-hidden"
@@ -33,7 +33,7 @@ const ProductCard = ({ product }) => {
         >
           {product.images.map((image, index) => (
             <SwiperSlide key={index}>
-              <div className="relative h-64 bg-gray-200 rounded-xl overflow-hidden">
+              <div className="relative h-90 bg-gray-200 rounded-xl overflow-hidden">
                 <img
                   src={image}
                   alt={`${product.name} - Image ${index + 1}`}

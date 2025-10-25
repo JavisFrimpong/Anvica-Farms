@@ -6,10 +6,20 @@ import { products } from '../data/products';
 const CheckoutPage = () => {
   const { items, getTotalPrice } = useCart();
 
-  const cartItems = Object.entries(items).map(([productId, quantity]) => ({
-    ...products[productId],
-    quantity
-  }));
+  // Defensive cart item construction (match by product key or product.id)
+  const cartItems = Object.entries(items).map(([productKey, quantity]) => {
+    const productFromKey = products[productKey];
+    const productById = Object.values(products).find((p) => p.id === productKey);
+    const product = productFromKey || productById || null;
+
+    return {
+      productKey,
+      id: product ? (product.id ?? productKey) : productKey,
+      name: product ? product.name : 'Unknown product',
+      price: product ? product.price : 0,
+      quantity
+    };
+  });
 
   if (cartItems.length === 0) {
     return (
@@ -29,7 +39,7 @@ const CheckoutPage = () => {
   }
 
   return (
-    <div className="min-h-screen py-16 px-4">
+    <div className="min-h-screen pt-28 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -71,7 +81,7 @@ const CheckoutPage = () => {
               Total Amount
             </h3>
             <div className="text-4xl font-bold text-primary-600 mb-8">
-              ₵{getTotalPrice().toLocaleString()}
+              ₵{(getTotalPrice() ?? 0).toLocaleString()}
             </div>
             <Link to="/details" className="btn-success w-full">
               Next <i className="fas fa-arrow-right ml-2"></i>
