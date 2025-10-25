@@ -48,7 +48,7 @@ const HomePage = () => {
                   View Cart
                 </button>
                 <a 
-                  href={`tel:${products.contactInfo?.phone || '+233 24 123 4567'}`}
+                  href={`tel:${products.contactInfo?.phone || '0555824836, 0545127675'}`}
                   className="btn-secondary"
                 >
                   <i className="fas fa-phone mr-2"></i>
