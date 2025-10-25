@@ -53,9 +53,9 @@ const ProductCard = ({ product }) => {
 
       {/* Product Info */}
       <div className="text-center">
-        <h3 className="text-lg font-bold text-primary-600 mb-2 border-b-2 border-primary-100 pb-2">
+        {/* <h3 className="text-lg font-bold text-primary-600 mb-2 border-b-2 border-primary-100 pb-2">
           {product.category}
-        </h3>
+        </h3> */}
         <h4 className="text-xl font-semibold text-gray-800 mb-2">
           {product.name}
         </h4>

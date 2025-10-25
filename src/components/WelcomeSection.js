@@ -45,9 +45,8 @@ const WelcomeSection = () => {
           <div className="mt-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-xl">
             <p className="text-gray-700">
               <i className="fas fa-info-circle text-yellow-500 mr-2"></i>
-              <strong>Delivery</strong> is available within Kumasi and surrounding areas. 
-              Contact us for delivery to other regions. We can also deliver to your 
-              doorstep if you are in the surrounding areas.
+              <strong>Free delivery</strong> is available within Konongo-Agogo and surrounding areas. 
+              Contact us for your fast delivery to other areas of Kumasi and other regions.
             </p>
           </div>
         </div>

@@ -18,7 +18,7 @@ const HomePage = () => {
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Choose from our carefully selected range of poultry products. 
-              All our products are sourced from healthy, well-cared-for poultry farms.
+              All our products are sourced from healthy and well-cared-for poultry farms.
             </p>
           </div>
 
