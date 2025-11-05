@@ -1,9 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import WelcomeSection from '../components/WelcomeSection';
 import ProductCard from '../components/ProductCard';
-import { products } from '../data/products';
+import { getProducts } from '../services/productService';
+import { contactInfo } from '../data/products';
 
 const HomePage = () => {
+  const [products, setProducts] = useState({});
+
+  useEffect(() => {
+    // Load products from service (which uses localStorage or defaults)
+    const loadProducts = () => {
+      const allProducts = getProducts();
+      setProducts(allProducts);
+    };
+    loadProducts();
+    
+    // Listen for storage changes (when admin updates products in another tab)
+    const handleStorageChange = (e) => {
+      if (e.key === 'anvica_products') {
+        loadProducts();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Listen for custom event (when admin updates products in same tab)
+    const handleProductUpdate = () => {
+      loadProducts();
+    };
+    window.addEventListener('productsUpdated', handleProductUpdate);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('productsUpdated', handleProductUpdate);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen">
       {/* Welcome Section */}
@@ -48,7 +79,7 @@ const HomePage = () => {
                   View Cart
                 </button>
                 <a 
-                  href={`tel:${products.contactInfo?.phone || '0555824836, 0545127675'}`}
+                  href={`tel:${contactInfo?.phone || '0555824836, 0545127675'}`}
                   className="btn-secondary"
                 >
                   <i className="fas fa-phone mr-2"></i>
