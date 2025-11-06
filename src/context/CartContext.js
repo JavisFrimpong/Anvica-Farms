@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { products as productsData } from '../data/products';
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import { getProducts } from '../services/productService';
 
 // Cart version for migrations
 const CURRENT_CART_VERSION = 1;
@@ -89,7 +89,7 @@ const cartReducer = (state, action) => {
 };
 
 // Validate cart data structure
-const validateCartItems = (items) => {
+const validateCartItems = (items, productsData) => {
   if (!items || typeof items !== 'object') return {};
   
   // Filter out invalid entries and normalize quantities
@@ -113,7 +113,7 @@ const validateCartItems = (items) => {
 };
 
 // Migrate cart data between versions
-const migrateCart = (savedCart) => {
+const migrateCart = (savedCart, productsData) => {
   try {
     const parsed = JSON.parse(savedCart);
     const version = parsed.version || 0;
@@ -122,7 +122,7 @@ const migrateCart = (savedCart) => {
     if (version < 1) {
       return {
         version: CURRENT_CART_VERSION,
-        items: validateCartItems(parsed.items),
+        items: validateCartItems(parsed.items, productsData),
         customerDetails: parsed.customerDetails || null,
         lastUpdated: new Date().toISOString()
       };
@@ -131,7 +131,7 @@ const migrateCart = (savedCart) => {
     // Cart is current version
     return {
       ...parsed,
-      items: validateCartItems(parsed.items),
+      items: validateCartItems(parsed.items, productsData),
       lastUpdated: new Date().toISOString()
     };
   } catch (e) {
@@ -140,46 +140,56 @@ const migrateCart = (savedCart) => {
   }
 };
 
-const getInitialState = () => {
-  const savedCart = localStorage.getItem('anvicaCart');
-  if (savedCart) {
-    try {
-      const migrated = migrateCart(savedCart);
-      if (migrated) {
-        console.debug('[Cart] Loaded saved cart:', {
-          version: migrated.version,
-          itemCount: Object.keys(migrated.items).length
-        });
-        return {
-          items: migrated.items,
-          customerDetails: migrated.customerDetails || null
-        };
-      }
-    } catch (e) {
-      console.error('[Cart] Error loading saved cart:', e);
-    }
-  }
-  
-  // Return empty cart if nothing valid was loaded
-  return {
-    items: {},
-    customerDetails: null
-  };
-};
-
 export const CartProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(cartReducer, getInitialState());
+  const [productsData, setProductsData] = useState(() => getProducts());
+  const [state, dispatch] = useReducer(cartReducer, { items: {}, customerDetails: null });
 
-  // Load cart from localStorage on mount
+  // Load products and listen for updates
+  useEffect(() => {
+    const loadProducts = () => {
+      const products = getProducts();
+      setProductsData(products);
+    };
+    
+    loadProducts();
+    
+    // Listen for product updates
+    const handleProductUpdate = () => {
+      loadProducts();
+    };
+    window.addEventListener('productsUpdated', handleProductUpdate);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'anvica_products') {
+        loadProducts();
+      }
+    });
+    
+    return () => {
+      window.removeEventListener('productsUpdated', handleProductUpdate);
+    };
+  }, []);
+
+  // Load cart from localStorage on mount and when products change
   useEffect(() => {
     const savedCart = localStorage.getItem('anvicaCart');
     if (savedCart) {
-      const parsedCart = JSON.parse(savedCart);
-      if (parsedCart.items) {
-        dispatch({ type: 'SET_CART', payload: parsedCart.items });
+      try {
+        const migrated = migrateCart(savedCart, productsData);
+        if (migrated) {
+          console.debug('[Cart] Loaded saved cart:', {
+            version: migrated.version,
+            itemCount: Object.keys(migrated.items).length
+          });
+          dispatch({ type: 'SET_CART', payload: migrated.items });
+          if (migrated.customerDetails) {
+            dispatch({ type: 'SET_CUSTOMER_DETAILS', payload: migrated.customerDetails });
+          }
+        }
+      } catch (e) {
+        console.error('[Cart] Error loading saved cart:', e);
       }
     }
-  }, []);
+  }, [productsData]);
 
   // Save cart to localStorage whenever it changes
   useEffect(() => {
@@ -237,6 +247,9 @@ export const CartProvider = ({ children }) => {
     }, 0);
   };
 
+  // Get products data for components that need it
+  const getProductsData = () => productsData;
+
   const value = {
     ...state,
     addToCart,
@@ -246,7 +259,8 @@ export const CartProvider = ({ children }) => {
     setCustomerDetails,
     clearCustomerDetails,
     getTotalItems,
-    getTotalPrice
+    getTotalPrice,
+    getProductsData
   };
 
   return (

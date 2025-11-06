@@ -1,10 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { products } from '../data/products';
+import { getProducts } from '../services/productService';
 
 const CartPage = () => {
-  const { items, addToCart, removeFromCart, removeItemCompletely, getTotalPrice } = useCart();
+  const { items, addToCart, removeFromCart, removeItemCompletely, getTotalPrice, getProductsData } = useCart();
+  const [products, setProducts] = useState(() => getProductsData() || {});
+
+  // Load products and listen for updates
+  useEffect(() => {
+    const loadProducts = () => {
+      const allProducts = getProducts();
+      setProducts(allProducts);
+    };
+    
+    loadProducts();
+    
+    // Listen for product updates
+    const handleProductUpdate = () => {
+      loadProducts();
+    };
+    window.addEventListener('productsUpdated', handleProductUpdate);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'anvica_products') {
+        loadProducts();
+      }
+    });
+    
+    return () => {
+      window.removeEventListener('productsUpdated', handleProductUpdate);
+    };
+  }, []);
 
   // Build cart items defensively: items' keys might be either the product object key
   // (e.g. 'live-chicken') or the product's internal `id` (e.g. 'live-poultry').

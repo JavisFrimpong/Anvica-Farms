@@ -1,4 +1,12 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+} from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 
 const AdminAuthContext = createContext();
 
@@ -15,61 +23,236 @@ export const AdminAuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if admin is logged in on mount
-    const storedAdmin = localStorage.getItem('admin_user');
-    if (storedAdmin) {
-      try {
-        setAdmin(JSON.parse(storedAdmin));
-      } catch (error) {
-        console.error('Error parsing admin data:', error);
-        localStorage.removeItem('admin_user');
+    // Check if Firebase is configured
+    if (!auth || !db) {
+      // Fallback to localStorage-based authentication
+      const storedAdmin = localStorage.getItem('admin_user');
+      if (storedAdmin) {
+        try {
+          setAdmin(JSON.parse(storedAdmin));
+        } catch (error) {
+          console.error('Error parsing admin data:', error);
+          localStorage.removeItem('admin_user');
+        }
       }
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    // Listen for authentication state changes (Firebase)
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // User is signed in, fetch admin details from Firestore
+        try {
+          const adminDocRef = doc(db, 'admins', user.uid);
+          const adminDoc = await getDoc(adminDocRef);
+          
+          if (adminDoc.exists()) {
+            const adminData = adminDoc.data();
+            setAdmin({
+              uid: user.uid,
+              email: user.email,
+              name: adminData.name || user.email,
+              createdAt: adminData.createdAt,
+            });
+          } else {
+            // If admin document doesn't exist, create it
+            const adminData = {
+              email: user.email,
+              name: user.email?.split('@')[0] || 'Admin',
+              createdAt: new Date().toISOString(),
+            };
+            await setDoc(adminDocRef, adminData);
+            setAdmin({
+              uid: user.uid,
+              email: user.email,
+              name: adminData.name,
+              createdAt: adminData.createdAt,
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching admin data:', error);
+          setAdmin(null);
+        }
+      } else {
+        // User is signed out
+        setAdmin(null);
+      }
+      setLoading(false);
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const login = async (email, password) => {
-    // Check if admin exists in localStorage
-    const storedAdmins = JSON.parse(localStorage.getItem('admin_users') || '[]');
-    const foundAdmin = storedAdmins.find(
-      (admin) => admin.email === email && admin.password === password
-    );
+    // Fallback to localStorage if Firebase is not configured
+    if (!auth || !db) {
+      const storedAdmins = JSON.parse(localStorage.getItem('admin_users') || '[]');
+      const foundAdmin = storedAdmins.find(
+        (admin) => admin.email === email && admin.password === password
+      );
 
-    if (foundAdmin) {
-      const adminData = { email: foundAdmin.email, name: foundAdmin.name };
-      setAdmin(adminData);
-      localStorage.setItem('admin_user', JSON.stringify(adminData));
-      return { success: true };
+      if (foundAdmin) {
+        const adminData = { email: foundAdmin.email, name: foundAdmin.name };
+        setAdmin(adminData);
+        localStorage.setItem('admin_user', JSON.stringify(adminData));
+        return { success: true };
+      }
+
+      return { success: false, error: 'Invalid email or password' };
     }
 
-    return { success: false, error: 'Invalid email or password' };
+    // Use Firebase Authentication
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Update last login time in Firestore
+      if (user && db) {
+        try {
+          const adminDocRef = doc(db, 'admins', user.uid);
+          await setDoc(adminDocRef, {
+            lastLogin: new Date().toISOString(),
+          }, { merge: true }); // Use merge to not overwrite existing data
+        } catch (firestoreError) {
+          // Log but don't fail login if Firestore update fails
+          console.warn('Failed to update last login time:', firestoreError);
+        }
+      }
+
+      // The onAuthStateChanged listener will handle updating the admin state
+      return { success: true };
+    } catch (error) {
+      let errorMessage = 'An error occurred during login';
+      
+      switch (error.code) {
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'This account has been disabled';
+          break;
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Invalid password';
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = 'Invalid email or password';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed login attempts. Please try again later.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+          break;
+        default:
+          errorMessage = error.message || 'Login failed. Please try again.';
+      }
+      
+      return { success: false, error: errorMessage };
+    }
   };
 
   const signup = async (name, email, password) => {
-    // Check if admin already exists
-    const storedAdmins = JSON.parse(localStorage.getItem('admin_users') || '[]');
-    const existingAdmin = storedAdmins.find((admin) => admin.email === email);
+    // Fallback to localStorage if Firebase is not configured
+    if (!auth || !db) {
+      const storedAdmins = JSON.parse(localStorage.getItem('admin_users') || '[]');
+      const existingAdmin = storedAdmins.find((admin) => admin.email === email);
 
-    if (existingAdmin) {
-      return { success: false, error: 'Admin with this email already exists' };
+      if (existingAdmin) {
+        return { success: false, error: 'Admin with this email already exists' };
+      }
+
+      // Create new admin
+      const newAdmin = { name, email, password };
+      storedAdmins.push(newAdmin);
+      localStorage.setItem('admin_users', JSON.stringify(storedAdmins));
+
+      // Auto login after signup
+      const adminData = { email: newAdmin.email, name: newAdmin.name };
+      setAdmin(adminData);
+      localStorage.setItem('admin_user', JSON.stringify(adminData));
+
+      return { success: true };
     }
 
-    // Create new admin
-    const newAdmin = { name, email, password };
-    storedAdmins.push(newAdmin);
-    localStorage.setItem('admin_users', JSON.stringify(storedAdmins));
+    // Use Firebase Authentication
+    try {
+      // Validate password length before attempting signup
+      if (password.length < 6) {
+        return { 
+          success: false, 
+          error: 'Password must be at least 6 characters long' 
+        };
+      }
 
-    // Auto login after signup
-    const adminData = { email: newAdmin.email, name: newAdmin.name };
-    setAdmin(adminData);
-    localStorage.setItem('admin_user', JSON.stringify(adminData));
+      // Create user with Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-    return { success: true };
+      // Save admin details to Firestore
+      const adminDocRef = doc(db, 'admins', user.uid);
+      const adminData = {
+        email: email,
+        name: name,
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+      };
+      
+      await setDoc(adminDocRef, adminData);
+
+      // The onAuthStateChanged listener will handle updating the admin state
+      return { success: true };
+    } catch (error) {
+      let errorMessage = 'An error occurred during signup';
+      
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'An account with this email already exists';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Password is too weak. Please use a stronger password (at least 6 characters)';
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+          break;
+        default:
+          errorMessage = error.message || 'Signup failed. Please try again.';
+      }
+      
+      return { success: false, error: errorMessage };
+    }
   };
 
-  const logout = () => {
-    setAdmin(null);
-    localStorage.removeItem('admin_user');
+  const logout = async () => {
+    // Fallback to localStorage if Firebase is not configured
+    if (!auth) {
+      setAdmin(null);
+      localStorage.removeItem('admin_user');
+      return;
+    }
+
+    // Use Firebase Authentication
+    try {
+      await signOut(auth);
+      // The onAuthStateChanged listener will handle updating the admin state
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Fallback to localStorage cleanup
+      setAdmin(null);
+      localStorage.removeItem('admin_user');
+    }
   };
 
   const value = {

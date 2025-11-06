@@ -27,17 +27,34 @@ A modern, responsive React website for Anvica Farms poultry business with Tailwi
    npm install
    ```
 
-2. **Configure Formspree**
+2. **Configure Firebase (Optional but Recommended)**
+   - Go to [Firebase Console](https://console.firebase.google.com) and create a new project
+   - Enable Authentication (Email/Password provider)
+   - Create a Firestore database
+   - Go to Project Settings > General > Your apps
+   - Add a web app and copy the configuration values
+   - Create a `.env` file in the root directory:
+     ```env
+     REACT_APP_FIREBASE_API_KEY=your_api_key_here
+     REACT_APP_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+     REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+     REACT_APP_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+     REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+     REACT_APP_FIREBASE_APP_ID=your_app_id
+     ```
+   - **Note**: If Firebase is not configured, the app will use localStorage-based authentication as a fallback
+
+3. **Configure Formspree**
    - Go to [Formspree.io](https://formspree.io) and create a new form
    - Copy your form ID
    - Replace `YOUR_FORM_ID` in `src/components/FormspreeOrderForm.js` with your actual form ID
 
-3. **Start Development Server**
+4. **Start Development Server**
    ```bash
    npm start
    ```
 
-4. **Build for Production**
+5. **Build for Production**
    ```bash
    npm run build
    ```
@@ -140,7 +157,10 @@ export const contactInfo = {
 ### Vercel
 1. Connect your GitHub repository to Vercel
 2. Vercel will automatically build and deploy
-3. Update environment variables if needed
+3. Add Firebase environment variables in Vercel project settings:
+   - Go to Settings > Environment Variables
+   - Add all `REACT_APP_FIREBASE_*` variables from your `.env` file
+   - Redeploy after adding variables
 
 ## Browser Support
 - Chrome (latest)

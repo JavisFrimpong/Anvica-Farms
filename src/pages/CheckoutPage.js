@@ -1,10 +1,35 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { products } from '../data/products';
+import { getProducts } from '../services/productService';
 
 const CheckoutPage = () => {
   const { items, getTotalPrice } = useCart();
+  const [products, setProducts] = useState(() => getProducts());
+
+  // Load products and listen for updates
+  useEffect(() => {
+    const loadProducts = () => {
+      const allProducts = getProducts();
+      setProducts(allProducts);
+    };
+    
+    loadProducts();
+    
+    const handleProductUpdate = () => {
+      loadProducts();
+    };
+    window.addEventListener('productsUpdated', handleProductUpdate);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'anvica_products') {
+        loadProducts();
+      }
+    });
+    
+    return () => {
+      window.removeEventListener('productsUpdated', handleProductUpdate);
+    };
+  }, []);
 
   // Defensive cart item construction (match by product key or product.id)
   const cartItems = Object.entries(items).map(([productKey, quantity]) => {

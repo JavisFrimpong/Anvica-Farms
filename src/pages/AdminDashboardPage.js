@@ -27,10 +27,21 @@ const AdminDashboardPage = () => {
   const [imageProcessing, setImageProcessing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
+
+  const loadCategories = () => {
+    const allProducts = getProducts();
+    // Extract unique categories from all products
+    const uniqueCategories = [...new Set(Object.values(allProducts).map(p => p.category).filter(Boolean))];
+    setCategories(uniqueCategories.sort());
+  };
 
   const loadProducts = () => {
     const allProducts = getProducts();
@@ -138,6 +149,8 @@ const AdminDashboardPage = () => {
     setImageFiles([]);
     setError('');
     setSuccess('');
+    setIsAddingNewCategory(false);
+    setNewCategoryName('');
   };
 
   const handleAdd = () => {
@@ -152,6 +165,86 @@ const AdminDashboardPage = () => {
     setImageFiles([]);
     setError('');
     setSuccess('');
+    setIsAddingNewCategory(false);
+    setNewCategoryName('');
+  };
+
+  const handleCategoryChange = (e) => {
+    const value = e.target.value;
+    if (value === '__add_new__') {
+      setIsAddingNewCategory(true);
+      setNewCategoryName('');
+      setFormData({ ...formData, category: '' });
+    } else {
+      setIsAddingNewCategory(false);
+      setFormData({ ...formData, category: value });
+    }
+  };
+
+  const handleNewCategorySubmit = () => {
+    if (!newCategoryName.trim()) {
+      setError('Please enter a category name');
+      return;
+    }
+    
+    const trimmedCategory = newCategoryName.trim();
+    
+    // Check if category already exists
+    if (categories.includes(trimmedCategory)) {
+      setError('This category already exists');
+      return;
+    }
+
+    // Add new category to the list
+    const updatedCategories = [...categories, trimmedCategory].sort();
+    setCategories(updatedCategories);
+    
+    // Set the form category to the new category
+    setFormData({ ...formData, category: trimmedCategory });
+    setIsAddingNewCategory(false);
+    setNewCategoryName('');
+    setError('');
+    setSuccess('Category added successfully!');
+    setTimeout(() => setSuccess(''), 2000);
+  };
+
+  const handleCancelNewCategory = () => {
+    setIsAddingNewCategory(false);
+    setNewCategoryName('');
+    setFormData({ ...formData, category: '' });
+  };
+
+  const handleDeleteCategory = (categoryToDelete) => {
+    // Check if any products are using this category
+    const allProducts = getProducts();
+    const productsUsingCategory = Object.values(allProducts).filter(
+      (p) => p.category === categoryToDelete
+    );
+
+    if (productsUsingCategory.length > 0) {
+      setError(
+        `Cannot delete category "${categoryToDelete}". ${productsUsingCategory.length} product(s) are using this category. Please change the category of those products first.`
+      );
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
+    // Confirm deletion
+    if (!window.confirm(`Are you sure you want to delete the category "${categoryToDelete}"?`)) {
+      return;
+    }
+
+    // Remove category from list
+    const updatedCategories = categories.filter((cat) => cat !== categoryToDelete);
+    setCategories(updatedCategories);
+
+    // Clear form category if it was the deleted category
+    if (formData.category === categoryToDelete) {
+      setFormData({ ...formData, category: '' });
+    }
+
+    setSuccess(`Category "${categoryToDelete}" deleted successfully!`);
+    setTimeout(() => setSuccess(''), 3000);
   };
 
   const handleCancel = () => {
@@ -167,6 +260,8 @@ const AdminDashboardPage = () => {
     setImageFiles([]);
     setError('');
     setSuccess('');
+    setIsAddingNewCategory(false);
+    setNewCategoryName('');
   };
 
   const handleSubmit = async (e) => {
@@ -177,6 +272,12 @@ const AdminDashboardPage = () => {
 
     try {
       // Validation
+      if (isAddingNewCategory && !newCategoryName.trim()) {
+        setError('Please complete adding the new category or cancel and select an existing category');
+        setLoading(false);
+        return;
+      }
+
       if (!formData.name || !formData.price || !formData.category || !formData.description) {
         setError('Please fill in all fields');
         setLoading(false);
@@ -213,6 +314,7 @@ const AdminDashboardPage = () => {
         if (result.success) {
           setSuccess('Product added successfully!');
           loadProducts();
+        loadCategories(); // Reload categories in case a new one was added
           setTimeout(() => {
             handleCancel();
           }, 1500);
@@ -225,6 +327,7 @@ const AdminDashboardPage = () => {
         if (result.success) {
           setSuccess('Product updated successfully!');
           loadProducts();
+          loadCategories(); // Reload categories in case a new one was added
           setTimeout(() => {
             handleCancel();
           }, 1500);
@@ -314,17 +417,19 @@ const AdminDashboardPage = () => {
             </h2>
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Product Name *
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-gray-900 mb-2">
+                    Product Name * <span className="text-red-500 text-xs font-normal">(Most Essential)</span>
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-4 py-3 border-2 border-primary-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-lg font-medium"
+                    placeholder="Enter product name (e.g., Live Poultry (Adult))"
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">This will be the primary display name for the product</p>
                 </div>
 
                 <div>
@@ -345,13 +450,87 @@ const AdminDashboardPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Category *
                   </label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                    required
-                  />
+                  {!isAddingNewCategory ? (
+                    <div>
+                      <select
+                        value={formData.category}
+                        onChange={handleCategoryChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                        required
+                      >
+                        <option value="">Select a category</option>
+                        {categories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                        <option value="__add_new__">+ Add New Category</option>
+                      </select>
+                      {categories.length > 0 && (
+                        <div className="mt-2">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Manage Categories:
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {categories.map((category) => (
+                              <span
+                                key={category}
+                                className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                              >
+                                {category}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCategory(category)}
+                                  className="text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full p-0.5 transition-colors"
+                                  title={`Delete category "${category}"`}
+                                >
+                                  <i className="fas fa-times text-xs"></i>
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Categories with products cannot be deleted
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="Enter new category name"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleNewCategorySubmit();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleNewCategorySubmit}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelNewCategory}
+                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                  {isAddingNewCategory && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter a new category name and click Add, or select an existing category
+                    </p>
+                  )}
                 </div>
 
                 <div>

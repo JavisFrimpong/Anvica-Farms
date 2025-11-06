@@ -1,10 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
-import { products } from '../data/products';
+import { getProducts } from '../services/productService';
 
 const FormspreeOrderForm = ({ onSubmit }) => {
   const { items, customerDetails, getTotalPrice } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [products, setProducts] = useState(() => getProducts());
+
+  // Load products and listen for updates
+  useEffect(() => {
+    const loadProducts = () => {
+      const allProducts = getProducts();
+      setProducts(allProducts);
+    };
+    
+    loadProducts();
+    
+    const handleProductUpdate = () => {
+      loadProducts();
+    };
+    window.addEventListener('productsUpdated', handleProductUpdate);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'anvica_products') {
+        loadProducts();
+      }
+    });
+    
+    return () => {
+      window.removeEventListener('productsUpdated', handleProductUpdate);
+    };
+  }, []);
 
   // 🧠 Build clean cart list
   const cartItems = Object.entries(items).map(([productKey, quantity]) => {

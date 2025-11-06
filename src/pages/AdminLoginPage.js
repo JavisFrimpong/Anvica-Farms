@@ -64,8 +64,9 @@ const AdminLoginPage = () => {
           return;
         }
 
+        // Firebase requires passwords to be at least 6 characters
         if (formData.password.length < 6) {
-          setError('Password must be at least 6 characters');
+          setError('Password must be at least 6 characters long');
           setLoading(false);
           return;
         }
@@ -97,6 +98,10 @@ const AdminLoginPage = () => {
               ? 'Sign in to access the admin dashboard'
               : 'Create a new admin account'}
           </p>
+          <div className="mt-2 flex items-center justify-center gap-2 text-xs text-green-600">
+            <i className="fas fa-shield-alt"></i>
+            <span>Secured with Firebase Authentication</span>
+          </div>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

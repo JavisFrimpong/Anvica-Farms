@@ -1,12 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { products } from '../data/products';
+import { getProducts } from '../services/productService';
 import FormspreeOrderForm from '../components/FormspreeOrderForm';
 
 const PreviewPage = () => {
   const { items, customerDetails, getTotalPrice } = useCart();
   const navigate = useNavigate();
+  const [products, setProducts] = useState(() => getProducts());
+
+  // Load products and listen for updates
+  useEffect(() => {
+    const loadProducts = () => {
+      const allProducts = getProducts();
+      setProducts(allProducts);
+    };
+    
+    loadProducts();
+    
+    const handleProductUpdate = () => {
+      loadProducts();
+    };
+    window.addEventListener('productsUpdated', handleProductUpdate);
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'anvica_products') {
+        loadProducts();
+      }
+    });
+    
+    return () => {
+      window.removeEventListener('productsUpdated', handleProductUpdate);
+    };
+  }, []);
 
   // Build cart items defensively (support lookup by product key or product.id)
   const cartItems = Object.entries(items).map(([productKey, quantity]) => {
