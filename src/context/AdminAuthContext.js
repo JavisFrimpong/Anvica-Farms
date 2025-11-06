@@ -195,16 +195,28 @@ export const AdminAuthProvider = ({ children }) => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      console.log('✅ User created in Firebase Auth:', user.uid);
+
       // Save admin details to Firestore
-      const adminDocRef = doc(db, 'admins', user.uid);
-      const adminData = {
-        email: email,
-        name: name,
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-      };
-      
-      await setDoc(adminDocRef, adminData);
+      try {
+        const adminDocRef = doc(db, 'admins', user.uid);
+        const adminData = {
+          email: email,
+          name: name,
+          createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+        };
+        
+        await setDoc(adminDocRef, adminData);
+        console.log('✅ Admin details saved to Firestore');
+      } catch (firestoreError) {
+        console.error('❌ Error saving admin to Firestore:', firestoreError);
+        console.error('Error code:', firestoreError.code);
+        // Don't fail signup if Firestore save fails - user is still created in Auth
+        if (firestoreError.code === 'permission-denied') {
+          console.warn('Firestore permission denied. Check your Firestore security rules.');
+        }
+      }
 
       // The onAuthStateChanged listener will handle updating the admin state
       return { success: true };

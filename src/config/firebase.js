@@ -58,16 +58,23 @@ if (isFirebaseConfigured) {
     auth = getAuth(app);
     db = getFirestore(app);
     console.log('✅ Firebase initialized successfully');
+    console.log('Firebase Project ID:', firebaseConfig.projectId);
+    console.log('Firebase Auth Domain:', firebaseConfig.authDomain);
   } catch (error) {
     console.error('❌ Error initializing Firebase:', error);
     console.error(
       'Please check your Firebase configuration and environment variables.'
     );
+    // Set to null to trigger fallback
+    app = null;
+    auth = null;
+    db = null;
   }
 } else {
   console.warn(
     '⚠️  Firebase not initialized. Admin authentication will use localStorage fallback.'
   );
+  console.warn('Missing variables:', missingVars);
 }
 
 // Export Firebase services (will be null if not configured)

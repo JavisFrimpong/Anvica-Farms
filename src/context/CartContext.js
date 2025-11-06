@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
-import { getProducts } from '../services/productService';
+import { getProducts, subscribeToProducts } from '../services/productService';
 
 // Cart version for migrations
 const CURRENT_CART_VERSION = 1;
@@ -141,31 +141,25 @@ const migrateCart = (savedCart, productsData) => {
 };
 
 export const CartProvider = ({ children }) => {
-  const [productsData, setProductsData] = useState(() => getProducts());
+  const [productsData, setProductsData] = useState({});
   const [state, dispatch] = useReducer(cartReducer, { items: {}, customerDetails: null });
 
-  // Load products and listen for updates
+  // Load products and listen for real-time updates
   useEffect(() => {
-    const loadProducts = () => {
-      const products = getProducts();
+    const loadProducts = async () => {
+      const products = await getProducts();
       setProductsData(products);
     };
     
     loadProducts();
     
-    // Listen for product updates
-    const handleProductUpdate = () => {
-      loadProducts();
-    };
-    window.addEventListener('productsUpdated', handleProductUpdate);
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'anvica_products') {
-        loadProducts();
-      }
+    // Set up real-time listener for products (syncs across all devices)
+    const unsubscribe = subscribeToProducts((updatedProducts) => {
+      setProductsData(updatedProducts);
     });
     
     return () => {
-      window.removeEventListener('productsUpdated', handleProductUpdate);
+      if (unsubscribe) unsubscribe();
     };
   }, []);
 

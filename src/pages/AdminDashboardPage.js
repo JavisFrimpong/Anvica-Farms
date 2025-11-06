@@ -7,6 +7,8 @@ import {
   addProduct,
   deleteProduct,
   generateProductKey,
+  subscribeToProducts,
+  migrateProductsToFirestore,
 } from '../services/productService';
 
 const AdminDashboardPage = () => {
@@ -32,20 +34,70 @@ const AdminDashboardPage = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
 
   useEffect(() => {
-    loadProducts();
-    loadCategories();
+    let isMounted = true;
+    let unsubscribe = null;
+
+    const initializeProducts = async () => {
+      try {
+        // Migrate products to Firestore on first load (if needed)
+        const migrationResult = await migrateProductsToFirestore();
+        if (migrationResult.success && migrationResult.migrated) {
+          console.log('✅ Products migrated to Firestore');
+        }
+
+        // Load products initially
+        if (isMounted) {
+          await loadProducts();
+        }
+        
+        // Set up real-time listener for products
+        if (isMounted) {
+          unsubscribe = subscribeToProducts((updatedProducts) => {
+            if (isMounted) {
+              setProducts(updatedProducts);
+              loadCategoriesFromProducts(updatedProducts);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error initializing products:', error);
+        if (isMounted) {
+          // Load from localStorage as fallback
+          const storedProducts = localStorage.getItem('anvica_products');
+          if (storedProducts) {
+            const products = JSON.parse(storedProducts);
+            setProducts(products);
+            loadCategoriesFromProducts(products);
+          }
+        }
+      }
+    };
+
+    initializeProducts();
+
+    return () => {
+      isMounted = false;
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, []);
 
-  const loadCategories = () => {
-    const allProducts = getProducts();
+  const loadCategoriesFromProducts = (productsData) => {
     // Extract unique categories from all products
-    const uniqueCategories = [...new Set(Object.values(allProducts).map(p => p.category).filter(Boolean))];
+    const uniqueCategories = [...new Set(Object.values(productsData).map(p => p.category).filter(Boolean))];
     setCategories(uniqueCategories.sort());
   };
 
-  const loadProducts = () => {
-    const allProducts = getProducts();
+  const loadCategories = async () => {
+    const allProducts = await getProducts();
+    loadCategoriesFromProducts(allProducts);
+  };
+
+  const loadProducts = async () => {
+    const allProducts = await getProducts();
     setProducts(allProducts);
+    loadCategoriesFromProducts(allProducts);
   };
 
   const handleLogout = () => {
@@ -214,9 +266,9 @@ const AdminDashboardPage = () => {
     setFormData({ ...formData, category: '' });
   };
 
-  const handleDeleteCategory = (categoryToDelete) => {
+  const handleDeleteCategory = async (categoryToDelete) => {
     // Check if any products are using this category
-    const allProducts = getProducts();
+    const allProducts = await getProducts();
     const productsUsingCategory = Object.values(allProducts).filter(
       (p) => p.category === categoryToDelete
     );
@@ -301,7 +353,7 @@ const AdminDashboardPage = () => {
       if (isAddingProduct) {
         // Add new product
         const productKey = generateProductKey(formData.name);
-        const existingProducts = getProducts();
+        const existingProducts = await getProducts();
         
         if (existingProducts[productKey]) {
           setError('A product with a similar name already exists. Please use a different name.');
@@ -310,11 +362,10 @@ const AdminDashboardPage = () => {
         }
 
         productData.id = productKey;
-        const result = addProduct(productKey, productData);
+        const result = await addProduct(productKey, productData);
         if (result.success) {
           setSuccess('Product added successfully!');
-          loadProducts();
-        loadCategories(); // Reload categories in case a new one was added
+          // Products will update automatically via real-time listener
           setTimeout(() => {
             handleCancel();
           }, 1500);
@@ -323,11 +374,10 @@ const AdminDashboardPage = () => {
         }
       } else {
         // Update existing product
-        const result = updateProduct(editingProduct, productData);
+        const result = await updateProduct(editingProduct, productData);
         if (result.success) {
           setSuccess('Product updated successfully!');
-          loadProducts();
-          loadCategories(); // Reload categories in case a new one was added
+          // Products will update automatically via real-time listener
           setTimeout(() => {
             handleCancel();
           }, 1500);
@@ -349,10 +399,10 @@ const AdminDashboardPage = () => {
     }
 
     try {
-      const result = deleteProduct(productKey);
+      const result = await deleteProduct(productKey);
       if (result.success) {
         setSuccess('Product deleted successfully!');
-        loadProducts();
+        // Products will update automatically via real-time listener
         setTimeout(() => setSuccess(''), 2000);
       } else {
         setError(result.error || 'Failed to delete product');

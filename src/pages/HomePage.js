@@ -1,37 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import WelcomeSection from '../components/WelcomeSection';
 import ProductCard from '../components/ProductCard';
-import { getProducts } from '../services/productService';
+import { getProducts, subscribeToProducts } from '../services/productService';
 import { contactInfo } from '../data/products';
 
 const HomePage = () => {
   const [products, setProducts] = useState({});
 
   useEffect(() => {
-    // Load products from service (which uses localStorage or defaults)
-    const loadProducts = () => {
-      const allProducts = getProducts();
+    // Load products initially
+    const loadProducts = async () => {
+      const allProducts = await getProducts();
       setProducts(allProducts);
     };
     loadProducts();
     
-    // Listen for storage changes (when admin updates products in another tab)
-    const handleStorageChange = (e) => {
-      if (e.key === 'anvica_products') {
-        loadProducts();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Listen for custom event (when admin updates products in same tab)
-    const handleProductUpdate = () => {
-      loadProducts();
-    };
-    window.addEventListener('productsUpdated', handleProductUpdate);
+    // Set up real-time listener for products (syncs across all devices)
+    const unsubscribe = subscribeToProducts((updatedProducts) => {
+      setProducts(updatedProducts);
+    });
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('productsUpdated', handleProductUpdate);
+      if (unsubscribe) unsubscribe();
     };
   }, []);
 
