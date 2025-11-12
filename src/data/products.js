@@ -18,8 +18,8 @@ export const products = {
     category: 'Live Poultry',
     description: 'Healthy, mature chickens ready for breeding or meat production',
     images: [
-      `${adultChicken1}`,
-      `${adultChicken2}`,
+      'src/photos/adult-chicken-1.jpg',
+      'src/photos/adult-chicken-2.jpg',
     ]
   },
   'dressed-full-chicken': {
@@ -29,7 +29,7 @@ export const products = {
     category: 'Dressed Chicken',
     description: 'Freshly processed full chicken, cleaned and ready for cooking',
     images: [
-      `${fullChicken}`,
+      `src/photos/full-chicken.jpg`,
     ]
   },
   'dressed-chicken-thighs': {
@@ -39,7 +39,7 @@ export const products = {
     category: 'Dressed Chicken',
     description: 'Freshly processed chicken thighs, cleaned and ready for cooking',
     images: [
-      `${chickenThighs}`,
+      'src/photos/chicken-thighs.jpg',
     ]
   },
   'dressed-chicken-back': {
@@ -49,7 +49,7 @@ export const products = {
     category: 'Dressed Chicken',
     description: 'Freshly processed chicken back, cleaned and ready for cooking',
     images: [
-      `${chickenBack}`,
+      'src/photos/chicken-back.png',
     ]
   },
   'dressed-chicken-wings': {
@@ -69,7 +69,7 @@ export const products = {
     category: 'Fresh Eggs',
     description: 'A crate of fresh eggs (small sized) from free-range chickens in our farm',
     images: [
-      `${egg}`
+      'src/photos/egg.jpg'
     ]
   },
   'eggs-medium': {
@@ -79,7 +79,7 @@ export const products = {
     category: 'Fresh Eggs',
     description: 'A crate of fresh eggs (medium sized) from free-range chickens in our farm',
     images: [
-      `${egg}`
+      'src/photos/egg.jpg'
     ]
   },
   'eggs-large': {
@@ -89,7 +89,7 @@ export const products = {
     category: 'Fresh Eggs',
     description: 'A crate of fresh eggs (large sized) from free-range chickens in our farm',
     images: [
-      `${egg}`
+      'src/photos/eggs.jpg'
     ]
   },
   'eggs-double-yolk': {
@@ -99,7 +99,7 @@ export const products = {
     category: 'Fresh Eggs',
     description: 'A crate of fresh eggs (double yolk) from free-range chickens in our farm',
     images: [
-      `${doubleYolk}`
+      'src/photos/double-yolked-eggs.jpg'
     ]
   },
   'small-chicken': {
@@ -109,8 +109,8 @@ export const products = {
     category: 'Live Poultry',
     description: 'Young, healthy chicks perfect for starting your own flock',
     images: [
-      `${smallChicken1}`,
-      `${smallChicken2}`
+      `src/photos/small-chick-1.jpg`,
+      `src/photos/small-chick-2.jpg`
     ]
   }
 };

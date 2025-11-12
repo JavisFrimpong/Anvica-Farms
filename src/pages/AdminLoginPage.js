@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
@@ -12,21 +12,19 @@ const AdminLoginPage = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
   const { login, signup, isAuthenticated } = useAdminAuth();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
-  React.useEffect(() => {
+  useEffect(() => {
     if (isAuthenticated) {
       navigate('/admin/dashboard', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
   };
 
@@ -64,7 +62,6 @@ const AdminLoginPage = () => {
           return;
         }
 
-        // Firebase requires passwords to be at least 6 characters
         if (formData.password.length < 6) {
           setError('Password must be at least 6 characters long');
           setLoading(false);
@@ -120,10 +117,9 @@ const AdminLoginPage = () => {
                 id="name"
                 name="name"
                 type="text"
-                required={!isLogin}
                 value={formData.name}
                 onChange={handleChange}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 placeholder="Enter your full name"
               />
             </div>
@@ -137,10 +133,9 @@ const AdminLoginPage = () => {
               id="email"
               name="email"
               type="email"
-              required
               value={formData.email}
               onChange={handleChange}
-              className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
               placeholder="Enter your email"
             />
           </div>
@@ -153,10 +148,9 @@ const AdminLoginPage = () => {
               id="password"
               name="password"
               type="password"
-              required
               value={formData.password}
               onChange={handleChange}
-              className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
               placeholder="Enter your password"
             />
           </div>
@@ -170,10 +164,9 @@ const AdminLoginPage = () => {
                 id="confirmPassword"
                 name="confirmPassword"
                 type="password"
-                required={!isLogin}
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                 placeholder="Confirm your password"
               />
             </div>
@@ -185,17 +178,13 @@ const AdminLoginPage = () => {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {isLogin ? 'Logging in...' : 'Signing up...'}
-                </span>
-              ) : (
-                isLogin ? 'Sign In' : 'Sign Up'
-              )}
+              {loading
+                ? isLogin
+                  ? 'Logging in...'
+                  : 'Signing up...'
+                : isLogin
+                ? 'Sign In'
+                : 'Sign Up'}
             </button>
           </div>
 
@@ -205,12 +194,7 @@ const AdminLoginPage = () => {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setError('');
-                setFormData({
-                  name: '',
-                  email: '',
-                  password: '',
-                  confirmPassword: '',
-                });
+                setFormData({ name: '', email: '', password: '', confirmPassword: '' });
               }}
               className="text-sm text-primary-600 hover:text-primary-500"
             >
@@ -226,4 +210,3 @@ const AdminLoginPage = () => {
 };
 
 export default AdminLoginPage;
-

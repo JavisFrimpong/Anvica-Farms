@@ -1,53 +1,42 @@
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import { db } from '../config/firebase';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { getProducts, subscribeToProducts } from '../services/productService';
 
-// Cart version for migrations
+// Firestore collection and doc for cart
+const CART_COLLECTION = 'carts';
 const CURRENT_CART_VERSION = 1;
 
 // Logging utility
 const logCartAction = (action, state, nextState) => {
-  console.debug(
-    `[Cart] ${action.type}:`,
-    {
-      payload: action.payload,
-      itemCount: Object.keys(nextState.items || {}).length,
-      totalQuantity: Object.values(nextState.items || {}).reduce((a, b) => a + b, 0)
-    }
-  );
+  console.debug(`[Cart] ${action.type}:`, {
+    payload: action.payload,
+    itemCount: Object.keys(nextState.items || {}).length,
+    totalQuantity: Object.values(nextState.items || {}).reduce((a, b) => a + b, 0),
+  });
 };
 
 const CartContext = createContext();
 
+// Cart reducer
 const cartReducer = (state, action) => {
   let nextState;
 
   switch (action.type) {
     case 'SET_CART':
-      nextState = {
-        ...state,
-        items: validateCartItems(action.payload || {})
-      };
+      nextState = { ...state, items: action.payload?.items || {}, customerDetails: action.payload?.customerDetails || null };
       break;
-    
+
     case 'ADD_TO_CART':
-      if (!action.payload?.id) {
-        console.warn('[Cart] Invalid ADD_TO_CART payload:', action.payload);
-        return state;
-      }
+      if (!action.payload?.id) return state;
       nextState = {
         ...state,
-        items: {
-          ...state.items,
-          [action.payload.id]: (state.items[action.payload.id] || 0) + 1
-        }
+        items: { ...state.items, [action.payload.id]: (state.items[action.payload.id] || 0) + 1 },
       };
       break;
-    
+
     case 'REMOVE_FROM_CART':
-      if (!action.payload?.id || !state.items[action.payload.id]) {
-        console.warn('[Cart] Invalid REMOVE_FROM_CART payload:', action.payload);
-        return state;
-      }
+      if (!action.payload?.id || !state.items[action.payload.id]) return state;
       const newItems = { ...state.items };
       if (newItems[action.payload.id] > 1) {
         newItems[action.payload.id] -= 1;
@@ -56,87 +45,61 @@ const cartReducer = (state, action) => {
       }
       nextState = { ...state, items: newItems };
       break;
-    
+
     case 'REMOVE_ITEM_COMPLETELY':
-      if (!action.payload?.id || !state.items[action.payload.id]) {
-        console.warn('[Cart] Invalid REMOVE_ITEM_COMPLETELY payload:', action.payload);
-        return state;
-      }
+      if (!action.payload?.id || !state.items[action.payload.id]) return state;
       const updatedItems = { ...state.items };
       delete updatedItems[action.payload.id];
       nextState = { ...state, items: updatedItems };
       break;
-    
+
     case 'CLEAR_CART':
       nextState = { ...state, items: {} };
       break;
-    
+
     case 'SET_CUSTOMER_DETAILS':
       nextState = { ...state, customerDetails: action.payload };
       break;
-    
+
     case 'CLEAR_CUSTOMER_DETAILS':
       nextState = { ...state, customerDetails: null };
       break;
-    
+
     default:
       return state;
   }
 
-  // Log the action and state change
   logCartAction(action, state, nextState);
   return nextState;
 };
 
-// Validate cart data structure
-const validateCartItems = (items, productsData) => {
-  if (!items || typeof items !== 'object') return {};
-  
-  // Filter out invalid entries and normalize quantities
-  const validItems = Object.entries(items).reduce((acc, [key, quantity]) => {
-    // Verify the product exists (either by key or id)
-    const productExists = productsData[key] || Object.values(productsData).some(p => p.id === key);
-    if (!productExists) {
-      console.warn(`[Cart] Removing invalid product: ${key}`);
-      return acc;
+// Firestore path for current user's cart
+// For simplicity, using a fixed user ID. Replace with auth UID in real apps.
+const CART_DOC_REF = doc(db, CART_COLLECTION, 'default_user_cart');
+
+// Load cart from Firestore
+const loadCartFromFirestore = async (dispatch) => {
+  try {
+    const docSnap = await getDoc(CART_DOC_REF);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      dispatch({ type: 'SET_CART', payload: data });
+    } else {
+      // Initialize cart
+      await setDoc(CART_DOC_REF, { version: CURRENT_CART_VERSION, items: {}, customerDetails: null, lastUpdated: new Date().toISOString() });
+      dispatch({ type: 'SET_CART', payload: { items: {}, customerDetails: null } });
     }
-    
-    // Ensure quantity is a positive number
-    const validQuantity = Math.max(0, parseInt(quantity) || 0);
-    if (validQuantity > 0) {
-      acc[key] = validQuantity;
-    }
-    return acc;
-  }, {});
-  
-  return validItems;
+  } catch (error) {
+    console.error('[Cart] Failed to load from Firestore:', error);
+  }
 };
 
-// Migrate cart data between versions
-const migrateCart = (savedCart, productsData) => {
+// Save cart to Firestore
+const saveCartToFirestore = async (cart) => {
   try {
-    const parsed = JSON.parse(savedCart);
-    const version = parsed.version || 0;
-    
-    // Version 0 -> 1: Add version number, validate items
-    if (version < 1) {
-      return {
-        version: CURRENT_CART_VERSION,
-        items: validateCartItems(parsed.items, productsData),
-        customerDetails: parsed.customerDetails || null,
-        lastUpdated: new Date().toISOString()
-      };
-    }
-    
-    // Cart is current version
-    return {
-      ...parsed,
-      items: validateCartItems(parsed.items, productsData),
-      lastUpdated: new Date().toISOString()
-    };
-  } catch (e) {
-    console.error('[Cart] Migration failed:', e);
-    return null;
+    await setDoc(CART_DOC_REF, { ...cart, lastUpdated: new Date().toISOString() });
+  } catch (error) {
+    console.error('[Cart] Failed to save to Firestore:', error);
   }
 };
 
@@ -144,105 +107,59 @@ export const CartProvider = ({ children }) => {
   const [productsData, setProductsData] = useState({});
   const [state, dispatch] = useReducer(cartReducer, { items: {}, customerDetails: null });
 
-  // Load products and listen for real-time updates
+  // Load products and subscribe to real-time updates
   useEffect(() => {
     const loadProducts = async () => {
       const products = await getProducts();
       setProductsData(products);
     };
-    
     loadProducts();
-    
-    // Set up real-time listener for products (syncs across all devices)
-    const unsubscribe = subscribeToProducts((updatedProducts) => {
-      setProductsData(updatedProducts);
-    });
-    
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+
+    const unsubscribeProducts = subscribeToProducts(setProductsData);
+    return () => unsubscribeProducts && unsubscribeProducts();
   }, []);
 
-  // Load cart from localStorage on mount and when products change
+  // Load cart from Firestore on mount
   useEffect(() => {
-    const savedCart = localStorage.getItem('anvicaCart');
-    if (savedCart) {
-      try {
-        const migrated = migrateCart(savedCart, productsData);
-        if (migrated) {
-          console.debug('[Cart] Loaded saved cart:', {
-            version: migrated.version,
-            itemCount: Object.keys(migrated.items).length
-          });
-          dispatch({ type: 'SET_CART', payload: migrated.items });
-          if (migrated.customerDetails) {
-            dispatch({ type: 'SET_CUSTOMER_DETAILS', payload: migrated.customerDetails });
-          }
-        }
-      } catch (e) {
-        console.error('[Cart] Error loading saved cart:', e);
-      }
-    }
-  }, [productsData]);
+    loadCartFromFirestore(dispatch);
 
-  // Save cart to localStorage whenever it changes
+    const unsubscribeCart = onSnapshot(CART_DOC_REF, (docSnap) => {
+      if (docSnap.exists()) {
+        dispatch({ type: 'SET_CART', payload: docSnap.data() });
+      }
+    });
+
+    return () => unsubscribeCart();
+  }, []);
+
+  // Sync cart changes to Firestore
   useEffect(() => {
-    const cartData = {
+    saveCartToFirestore({
       version: CURRENT_CART_VERSION,
       items: state.items,
       customerDetails: state.customerDetails,
-      lastUpdated: new Date().toISOString()
-    };
-    localStorage.setItem('anvicaCart', JSON.stringify(cartData));
+    });
   }, [state]);
 
-  const addToCart = (productId) => {
-    dispatch({ type: 'ADD_TO_CART', payload: { id: productId } });
-  };
+  const addToCart = (id) => dispatch({ type: 'ADD_TO_CART', payload: { id } });
+  const removeFromCart = (id) => dispatch({ type: 'REMOVE_FROM_CART', payload: { id } });
+  const removeItemCompletely = (id) => dispatch({ type: 'REMOVE_ITEM_COMPLETELY', payload: { id } });
+  const clearCart = () => dispatch({ type: 'CLEAR_CART' });
+  const setCustomerDetails = (details) => dispatch({ type: 'SET_CUSTOMER_DETAILS', payload: details });
+  const clearCustomerDetails = () => dispatch({ type: 'CLEAR_CUSTOMER_DETAILS' });
 
-  const removeFromCart = (productId) => {
-    dispatch({ type: 'REMOVE_FROM_CART', payload: { id: productId } });
-  };
-
-  const removeItemCompletely = (productId) => {
-    dispatch({ type: 'REMOVE_ITEM_COMPLETELY', payload: { id: productId } });
-  };
-
-  const clearCart = () => {
-    dispatch({ type: 'CLEAR_CART' });
-  };
-
-  const setCustomerDetails = (details) => {
-    dispatch({ type: 'SET_CUSTOMER_DETAILS', payload: details });
-  };
-
-  const clearCustomerDetails = () => {
-    dispatch({ type: 'CLEAR_CUSTOMER_DETAILS' });
-  };
-
-  const getTotalItems = () => {
-    return Object.values(state.items).reduce((total, quantity) => total + quantity, 0);
-  };
+  const getTotalItems = () => Object.values(state.items).reduce((a, b) => a + b, 0);
 
   const getTotalPrice = () => {
-    // Build a price lookup that supports both product key (object key)
-    // and the product's internal `id` so cart keys of either type work.
     const priceLookup = {};
     Object.entries(productsData).forEach(([key, p]) => {
-      if (p && typeof p.price === 'number') {
+      if (p?.price) {
         priceLookup[key] = p.price;
-        if (p.id) priceLookup[p.id] = p.price; // map internal id too
+        if (p.id) priceLookup[p.id] = p.price;
       }
     });
-
-    return Object.entries(state.items).reduce((total, [productId, quantity]) => {
-      const price = priceLookup[productId] ?? 0;
-      return total + price * quantity;
-    }, 0);
+    return Object.entries(state.items).reduce((total, [id, qty]) => total + (priceLookup[id] ?? 0) * qty, 0);
   };
-
-  // Get products data for components that need it
-  const getProductsData = () => productsData;
 
   const value = {
     ...state,
@@ -254,20 +171,14 @@ export const CartProvider = ({ children }) => {
     clearCustomerDetails,
     getTotalItems,
     getTotalPrice,
-    getProductsData
+    getProductsData: () => productsData,
   };
 
-  return (
-    <CartContext.Provider value={value}>
-      {children}
-    </CartContext.Provider>
-  );
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };
 
 export const useCart = () => {
   const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
+  if (!context) throw new Error('useCart must be used within CartProvider');
   return context;
 };
